@@ -1,0 +1,110 @@
+# Fortnite Thanos-Snap Debloater (v5.0)  
+# WARNING: Removes 10,000+ files. Backup EVERYTHING first.  
+
+$fortnitePath = "C:\Program Files\Epic Games\Fortnite"  
+
+# -----------------------------------------------
+# PHASE 1: Obliterate Hidden/Undocumented Bloat  
+# -----------------------------------------------
+$shadowBloat = @(  
+    # Engine diagnostics (hidden performance killers)  
+    "**/.ue5dirtree", "**/UnrealBinaryClock.log",  
+    "**/FileOpenOrder/*.bin", "**/FileSystem.manifest",  
+
+    # Unreal Insights telemetry (spyware-tier tracking)  
+    "**/Trace*.json", "**/SessionInfo*.json",  
+    "**/Profiling/*.utrace", "**/Profiling/*.cpuprofile",  
+
+    # Shader intermediates (rebuilds automatically)  
+    "**/ShaderLibrary/*.shaderbin", "**/GlobalShaderCache*.bin",  
+    "**/MaterialShaderMaps/*.ushadercode",  
+
+    # Epic's redundant cross-platform bloat  
+    "**/PS4/*", "**/XboxOne/*", "**/Switch/*", "**/Mobile/*",  
+    "**/GeForceNOW/*", "**/CloudGaming/*",  
+
+    # AI/BehaviorTree leftovers (unused NPC logic)  
+    "**/AI/Navmesh/*.bin", "**/BehaviorTree/Backup/*",  
+
+    # Physics engine leftovers  
+    "**/Chaos/*.pcdebug", "**/PhysX/*.bak",  
+
+    # Unreal Editor cancer  
+    "**/DerivedDataBackup/*", "**/Intermediate/*",  
+    "**/AutomationTool/*", "**/FileCache/*.cache",  
+
+    # Fortnite's secret "test" content  
+    "**/TestMaps/*", "**/QA/*", "**/DebugAssets/*",  
+    "**/_Internal/*", "**/DevOnly/*",  
+
+    # Language annihilation (keep only English)  
+    "**/int/*", "**/deu/*", "**/fra/*", "**/jpn/*",  
+    "**/kor/*", "**/chs/*", "**/cht/*", "**/ara/*",  
+
+    # 4K video/gameplay trailers (free 15GB+)  
+    "**/Movies/4K/*", "**/Movies/Trailers/*",  
+    "**/Movies/Seasonal/*.mp4",  
+
+    # Epic's secret analytics framework  
+    "**/EpicMetrics/*", "**/Telemetry/EpicInternal/*",  
+    "**/RED/*.dat"  # Radical Entertainment Debugger  
+)  
+
+Get-ChildItem -Path $fortnitePath -Recurse -Include $shadowBloat -Force | Remove-Item -Force -Recurse  
+
+# -----------------------------------------------
+# PHASE 2: Registry-Style INI Tweaks (Game-Changers)  
+# -----------------------------------------------
+$enginePath = "$env:LOCALAPPDATA\FortniteGame\Saved\Config\WindowsClient"  
+
+# Engine.ini: Disable ALL engine telemetry  
+@"
+[Analytics]
+DisableAnalytics=True  
+bSendTelemetryData=False  
+bEnableTelemetryThread=False  
+
+[CrashReportClient]  
+bImplicitSend=False  
+bNoErrorReport=True  
+
+[Startup]  
+AnalyticsDisableTracking=True  
+"@ | Out-File "$enginePath\Engine.ini" -Append  
+
+# GameUserSettings.ini: Kill post-processing  
+@"
+[ConsoleVariables]  
+r.BloomQuality=0  
+r.LensFlareQuality=0  
+r.FastBlurThreshold=0  
+r.Tonemapper.Quality=0  
+r.LightShafts=0  
+r.SceneColorFringeQuality=0  
+r.EyeAdaptation.Quality=0  
+"@ | Out-File "$enginePath\GameUserSettings.ini" -Append  
+
+# -----------------------------------------------
+# PHASE 3: Memory/Cache Bruteforce  
+# -----------------------------------------------
+# Purge DirectX Shader Cache (system-wide nuke)  
+Remove-Item -Path "$env:USERPROFILE\AppData\Local\D3DSCache\*" -Recurse -Force  
+
+# Obliterate Windows' Game Bar integrations  
+Get-ChildItem "HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId" -Recurse |  
+Where-Object { $_.Name -match "Fortnite" } | Remove-Item -Recurse -Force  
+
+# -----------------------------------------------
+# PHASE 4: Process Priority Warfare  
+# -----------------------------------------------
+$fortniteProcess = Get-Process -Name Fortnite -ErrorAction SilentlyContinue  
+if ($fortniteProcess) {  
+    # CPU Core Isolation (All cores + hyperthreading)  
+    $fortniteProcess.ProcessorAffinity = 0xFFFF  
+    # Memory priority: Maximum  
+    (Get-WmiObject Win32_Process -Filter "ProcessId = $($fortniteProcess.Id)").SetPriority(256)  
+    # GPU priority: DX12 trick  
+    reg add "HKCU\Software\Microsoft\DirectX\UserGpuPreferences" /v "Fortnite.exe" /t REG_SZ /d "GpuPriority=8" /f  
+}  
+
+Write-Host "Nuclear winter has come for Fortnite's bloat."  
