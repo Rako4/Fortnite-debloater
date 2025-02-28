@@ -1,11 +1,20 @@
-# Fortnite Thanos-Snap Debloater (v5.0)  
+# Fortnite Thanos-Snap Debloater (v5.1)  
 # WARNING: Removes 10,000+ files. Backup EVERYTHING first.  
 
-$fortnitePath = "C:\Program Files\Epic Games\Fortnite"  
+# Define Fortnite installation path
+$fortnitePath = "C:\Program Files\Epic Games\Fortnite"
+
+# Ensure the script is run as Administrator
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "This script must be run as Administrator. Exiting..."
+    exit
+}
 
 # -----------------------------------------------
 # PHASE 1: Obliterate Hidden/Undocumented Bloat  
 # -----------------------------------------------
+Write-Host "Starting Phase 1: Removing hidden bloat..."
+
 $shadowBloat = @(  
     # Engine diagnostics (hidden performance killers)  
     "**/.ue5dirtree", "**/UnrealBinaryClock.log",  
@@ -48,14 +57,29 @@ $shadowBloat = @(
     # Epic's secret analytics framework  
     "**/EpicMetrics/*", "**/Telemetry/EpicInternal/*",  
     "**/RED/*.dat"  # Radical Entertainment Debugger  
-)  
+)
 
-Get-ChildItem -Path $fortnitePath -Recurse -Include $shadowBloat -Force | Remove-Item -Force -Recurse  
+# Safely remove files
+foreach ($pattern in $shadowBloat) {
+    try {
+        Get-ChildItem -Path $fortnitePath -Recurse -Include $pattern -Force -ErrorAction Stop | Remove-Item -Force -Recurse -ErrorAction Stop
+    } catch {
+        Write-Host "Failed to remove files matching $pattern: $_"
+    }
+}
 
 # -----------------------------------------------
 # PHASE 2: Registry-Style INI Tweaks (Game-Changers)  
 # -----------------------------------------------
-$enginePath = "$env:LOCALAPPDATA\FortniteGame\Saved\Config\WindowsClient"  
+Write-Host "Starting Phase 2: Applying INI tweaks..."
+
+$enginePath = "$env:LOCALAPPDATA\FortniteGame\Saved\Config\WindowsClient"
+
+# Ensure the directory exists
+if (-not (Test-Path $enginePath)) {
+    Write-Host "Fortnite config directory not found. Exiting..."
+    exit
+}
 
 # Engine.ini: Disable ALL engine telemetry  
 @"
@@ -70,7 +94,7 @@ bNoErrorReport=True
 
 [Startup]  
 AnalyticsDisableTracking=True  
-"@ | Out-File "$enginePath\Engine.ini" -Append  
+"@ | Out-File "$enginePath\Engine.ini" -Append -ErrorAction Stop
 
 # GameUserSettings.ini: Kill post-processing  
 @"
@@ -82,29 +106,21 @@ r.Tonemapper.Quality=0
 r.LightShafts=0  
 r.SceneColorFringeQuality=0  
 r.EyeAdaptation.Quality=0  
-"@ | Out-File "$enginePath\GameUserSettings.ini" -Append  
+"@ | Out-File "$enginePath\GameUserSettings.ini" -Append -ErrorAction Stop
 
 # -----------------------------------------------
 # PHASE 3: Memory/Cache Bruteforce  
 # -----------------------------------------------
+Write-Host "Starting Phase 3: Purging memory caches..."
+
 # Purge DirectX Shader Cache (system-wide nuke)  
-Remove-Item -Path "$env:USERPROFILE\AppData\Local\D3DSCache\*" -Recurse -Force  
+try {
+    Remove-Item -Path "$env:USERPROFILE\AppData\Local\D3DSCache\*" -Recurse -Force -ErrorAction Stop
+} catch {
+    Write-Host "Failed to purge DirectX Shader Cache: $_"
+}
 
 # Obliterate Windows' Game Bar integrations  
-Get-ChildItem "HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId" -Recurse |  
-Where-Object { $_.Name -match "Fortnite" } | Remove-Item -Recurse -Force  
-
-# -----------------------------------------------
-# PHASE 4: Process Priority Warfare  
-# -----------------------------------------------
-$fortniteProcess = Get-Process -Name Fortnite -ErrorAction SilentlyContinue  
-if ($fortniteProcess) {  
-    # CPU Core Isolation (All cores + hyperthreading)  
-    $fortniteProcess.ProcessorAffinity = 0xFFFF  
-    # Memory priority: Maximum  
-    (Get-WmiObject Win32_Process -Filter "ProcessId = $($fortniteProcess.Id)").SetPriority(256)  
-    # GPU priority: DX12 trick  
-    reg add "HKCU\Software\Microsoft\DirectX\UserGpuPreferences" /v "Fortnite.exe" /t REG_SZ /d "GpuPriority=8" /f  
-}  
-
-Write-Host "Nuclear winter has come for Fortnite's bloat."  
+try {
+    Get-ChildItem "HKLM:\SOFTWARE\Microsoft\WindowsRuntime\ActivatableClassId" -Recurse |  
+    Where-Object { $_.Name -match "Fortnite" } | Remove-Item
